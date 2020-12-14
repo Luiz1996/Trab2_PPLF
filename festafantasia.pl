@@ -70,12 +70,9 @@ festa(Pessoa1, Pessoa2, Pessoa3, Pessoa4) :-
     % restricao n.1 (Tio nao acompanha a menina vestida de Bruxa)
     member(pessoa(_,_,NaoEhBruxa,tio), Festa),
 
-    % usada para definir meninas que nao podem estar de Bruxa
-    NaoEhBruxa \= bruxa,
-
     % restricao n.2 (Roberta eh 1 ano mais velha que Helen)
-    um_ano_mais_nova(Festa, pessoa(helen,_,_,_), 
-                            pessoa(roberta,_,_,_)),
+    eh_mais_nova(Festa, pessoa(helen,_,_,_), 
+                        pessoa(roberta,_,_,_), DiferencaIdadeEhUmAno),
 
     % restricao n.3 (A menina vestida de Princesa tem 9 anos ou eh a Roberta)
     (
@@ -85,7 +82,7 @@ festa(Pessoa1, Pessoa2, Pessoa3, Pessoa4) :-
 
     % restricao n.4 (Priscila eh mais nova que a menina vestida de Heroina)
     eh_mais_nova(Festa, pessoa(priscila,_,_,_), 
-                        pessoa(_,_,heroina,_)),
+                        pessoa(_,_,heroina,_), DiferencaIdadeMaiorQueZero),                       
 
     % restricao n.5 (A menina de 7 anos esta vestida de Fada ou esta com o Pai)
     (
@@ -96,7 +93,7 @@ festa(Pessoa1, Pessoa2, Pessoa3, Pessoa4) :-
     % restricao n.6 (Helen nao esta vestida de Bruxa)
     member(pessoa(helen,_,NaoEhBruxa,_), Festa),
 
-    % restricao n.7 (A menina de 8 anos ou eh a Priscila ou esta vestida de Heroina)
+    % restricao n.7 (Se menina de 8 anos eh Heroina, entao Priscila esta com a mae... Ou, vice-versa)
     (
         (
          member(pessoa(_,8,heroina,_), Festa), 
@@ -104,101 +101,88 @@ festa(Pessoa1, Pessoa2, Pessoa3, Pessoa4) :-
         )
         ;
         (
-         member(pessoa(priscila,8,_,_), Festa),
-         member(pessoa(_,_,heroina,mae), Festa)
+         member(pessoa(_,_,heroina,mae), Festa),   
+         member(pessoa(priscila,8,_,_), Festa)
         )
     ),
 
     % restricao n.8 (A menina de 9 anos esta com a Mae)
-    member(pessoa(_,9,_,mae), Festa).
+    member(pessoa(_,9,_,mae), Festa),
+    
+    % restricoes auxiliares
+    NaoEhBruxa \= bruxa,
+    DiferencaIdadeEhUmAno #= 1,
+    DiferencaIdadeMaiorQueZero #> 0.
 
-%% eh_mais_nova(?Festa, ?P1, ?P2) is nondet
+%% eh_mais_nova(?Festa, ?P1, ?P2, ?Dif) is nondet
 %
-%  Verdadeiro se a pessoa P1 é mais nova que P2 e elas pertencem à Festa.
+%  Verdadeiro se a a diferença de idade entre P1 e P2 é igual a Dif anos, 
+%  além disso, P1 e P2 devem participar da Festa.
 
 :- begin_tests(eh_mais_nova).
 
 test(t01, nondet) :-
     A = pessoa(priscila,6,_,_),
     B = pessoa(debora,9,_,_),
-    eh_mais_nova([A, B], A, B).
+    eh_mais_nova([A, B], A, B, 3).
 
 test(t02, fail) :-
     A = pessoa(priscila,6,_,_),
     B = pessoa(debora,9,_,_),
-    eh_mais_nova([A, B], B, A).
+    eh_mais_nova([A, B], B, A, 3).
 
 test(t03, nondet) :-
     A = pessoa(_,_,_,_),
     B = pessoa(_,_,_,_),
-    eh_mais_nova([A, B], A, B).
+    eh_mais_nova([A, B], A, B, _).
 
 test(t04, fail) :-
-    eh_mais_nova([], _, _).
+    eh_mais_nova([], _, _, _).
 
 test(t05, nondet) :-
     A = pessoa(priscila,I,_,_),
     B = pessoa(debora,9,_,_),
     I is 6,
-    eh_mais_nova([A, B], A, B). 
+    eh_mais_nova([A, B], A, B, 3). 
 
 test(t06, fail) :-
     A = pessoa(priscila,I,_,_),
     B = pessoa(debora,I,_,_),
     I #= 6,
-    eh_mais_nova([A, B], A, B).       
+    eh_mais_nova([A, B], A, B, 3).       
+
+test(t07, nondet) :-
+    A = pessoa(priscila,I,_,_),
+    B = pessoa(debora,I,_,_),
+    I #= 5,
+    eh_mais_nova([A, B], A, B, 0).
+
+test(t08, fail) :-
+    A = pessoa(priscila,I1,_,_),
+    B = pessoa(debora,I2,_,_),
+    I1 #= 9,
+    I2 #= 9,
+    eh_mais_nova([A, B], A, B, DiferencaIdadeMaiorQueZero),
+    DiferencaIdadeMaiorQueZero #> 0.
+
+test(t09, nondet) :-
+    A = pessoa(priscila,I1,_,_),
+    B = pessoa(debora,I2,_,_),
+    I1 #= 8,
+    I2 #= 9,
+    eh_mais_nova([A, B], A, B, 1).
+
+test(t10, fail) :-
+    A = pessoa(priscila,I,_,_),
+    B = pessoa(debora,9,_,_),
+    I is 6,
+    eh_mais_nova([A, B], B, A, 3).
 
 :- end_tests(eh_mais_nova).
 
-eh_mais_nova(Festa, P1, P2) :-
+eh_mais_nova(Festa, P1, P2, Dif) :-
     P1 = pessoa(_, I1, _, _),
     P2 = pessoa(_, I2, _, _),
-    I2 - I1 #> 0,
-    member(P1, Festa),
-    member(P2, Festa).
-
-%% um_ano_mais_nova(?Festa, ?P1, ?P2) is nondet
-%
-%  Verdadeiro se a pessoa P1 é exatamente 1 ano mais nova que P2 e elas 
-%  pertencem à Festa.
-
-:- begin_tests(um_ano_mais_nova).
-
-test(t07, nondet) :-
-    A = pessoa(priscila,8,_,_),
-    B = pessoa(debora,9,_,_),
-    um_ano_mais_nova([A, B], A, B).
-
-test(t08, fail) :-
-    A = pessoa(priscila,8,_,_),
-    B = pessoa(debora,9,_,_),
-    um_ano_mais_nova([A, B], B, A).
-
-test(t09, nondet) :-
-    A = pessoa(_,_,_,_),
-    B = pessoa(_,_,_,_),
-    um_ano_mais_nova([A, B], A, B).
-
-test(t10, fail) :-
-    um_ano_mais_nova([], _, _).
-
-test(t11, nondet) :-
-    A = pessoa(priscila,I,_,_),
-    B = pessoa(debora,9,_,_),
-    I is 8,
-    um_ano_mais_nova([A, B], A, B). 
-
-test(t12, fail) :-
-    A = pessoa(priscila,I,_,_),
-    B = pessoa(debora,I,_,_),
-    I #= 8,
-    um_ano_mais_nova([A, B], A, B).       
-
-:- end_tests(um_ano_mais_nova).
-
-um_ano_mais_nova(Festa, P1, P2) :-
-    P1 = pessoa(_, I1, _, _),
-    P2 = pessoa(_, I2, _, _),
-    I1 #= I2 - 1,
+    I2 - I1 #= Dif,
     member(P1, Festa),
     member(P2, Festa).
